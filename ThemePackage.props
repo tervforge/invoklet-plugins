@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <TargetFramework>net10.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <Authors>Tervforge</Authors>
+    <RepositoryUrl>https://github.com/tervforge/invoklet-custom-themes</RepositoryUrl>
+    <PackageTags>invoklet theme</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="*.json" Pack="true" PackagePath="plugin/" />
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

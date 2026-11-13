@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="themes/invoklet.theme.rider/invoklet.theme.rider.csproj" />
+  <Project Path="themes/invoklet.theme.vs2022/invoklet.theme.vs2022.csproj" />
+  <Project Path="themes/invoklet.theme.vscode/invoklet.theme.vscode.csproj" />
+</Solution>
