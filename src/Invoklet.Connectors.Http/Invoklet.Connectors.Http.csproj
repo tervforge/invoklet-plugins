@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../PluginPackage.props" />
+  <PropertyGroup>
+    <RootNamespace>Invoklet.Connectors.Http</RootNamespace>
+    <Description>HTTP and OpenAPI connections for Invoklet.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Invoklet.Contracts" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.Connectors.Tests" />
+  </ItemGroup>
+</Project>

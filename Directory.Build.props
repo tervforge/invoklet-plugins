@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);IDE0007;IDE0008;CS1591;CA2007;</NoWarn>
+    <!-- Satellite resources of Roslyn and EF Core would multiply the package size and entry count; Invoklet shows English messages. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- An Invoklet source checkout, for the tests that compile and run scripts through the application. -->
+    <InvokletRoot Condition="'$(InvokletRoot)' == ''">$(MSBuildThisFileDirectory)../invoklet/</InvokletRoot>
+    <InvokletRoot>$([MSBuild]::EnsureTrailingSlash('$(InvokletRoot)'))</InvokletRoot>
+  </PropertyGroup>
+</Project>

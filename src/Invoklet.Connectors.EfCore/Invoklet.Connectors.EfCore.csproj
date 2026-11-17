@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Reads a database with Entity Framework Core's reverse engineering and writes the context a script uses. The providers (SQLite,
+       PostgreSQL, SQL Server) are plugins of their own that depend on this one and bring only their own packages. -->
+  <Import Project="../../PluginPackage.props" />
+  <PropertyGroup>
+    <RootNamespace>Invoklet.Connectors.EfCore</RootNamespace>
+    <Description>Entity Framework Core schema reader shared by the Invoklet database connectors.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Invoklet.Contracts" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <!-- The design package asks for Roslyn 5.0; Invoklet uses a newer one. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.Common" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.Connectors.Tests" />
+    <InternalsVisibleTo Include="Invoklet.Connectors.IntegrationTests" />
+  </ItemGroup>
+  <Import Project="../../build/EfCoreDesign.props" />
+</Project>

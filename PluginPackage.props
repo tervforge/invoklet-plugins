@@ -1,0 +1,45 @@
+<Project>
+  <!-- A connector plugin package: the published plugin (manifest, assemblies, .deps.json, native assets) under plugin/, and nothing else.
+       The package id and version come from invoklet-plugin.json, so the two cannot drift apart. -->
+  <PropertyGroup>
+    <_PluginManifestText>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/invoklet-plugin.json'))</_PluginManifestText>
+    <PackageId>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"id"\s*:\s*"([^"]+)"').Groups[1].Value)</PackageId>
+    <Version>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"version"\s*:\s*"([^"]+)"').Groups[1].Value)</Version>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- Every runtime dependency is in the payload; plugin dependencies are the manifest's dependsOn. -->
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
+    <Authors>Tervforge</Authors>
+    <Description>Invoklet connection plugin.</Description>
+    <RepositoryUrl>https://github.com/tervforge/invoklet-plugins</RepositoryUrl>
+    <PackageTags>invoklet plugin</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <!-- The payload is portable: native assets travel under runtimes/ and the plugin's .deps.json picks one. Only the runtimes
+         Invoklet ships for are kept; the others would only grow the package. -->
+    <PluginPayloadDirectory>$(BaseIntermediateOutputPath)plugin-payload/</PluginPayloadDirectory>
+    <PluginRuntimes>;win;win-x64;win-arm64;unix;osx;osx-x64;osx-arm64;linux;linux-x64;linux-arm64;</PluginRuntimes>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Only the plugin being packed publishes its manifest: a referenced plugin (EF Core) has a manifest of its own. -->
+    <None Include="invoklet-plugin.json" CopyToPublishDirectory="PreserveNewest" Condition="'$(PluginPayloadProject)' == '$(MSBuildProjectName)'" />
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+  <Target Name="AddPluginPayloadToPackage" BeforeTargets="_GetPackageFiles">
+    <RemoveDir Directories="$(PluginPayloadDirectory)" />
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish"
+             Properties="NoBuild=true;PluginPayloadProject=$(MSBuildProjectName);PublishDir=$([System.IO.Path]::GetFullPath('$(PluginPayloadDirectory)'));_IsPublishing=true" />
+    <ItemGroup Condition="Exists('$(PluginPayloadDirectory)runtimes')">
+      <_PluginRuntimeDirectory Include="$([System.IO.Directory]::GetDirectories('$(PluginPayloadDirectory)runtimes'))" />
+      <_UnusedPluginRuntimeDirectory Include="@(_PluginRuntimeDirectory)"
+                                     Condition="!$(PluginRuntimes.Contains(';%(Filename)%(Extension);'))" />
+    </ItemGroup>
+    <RemoveDir Directories="@(_UnusedPluginRuntimeDirectory)" />
+    <ItemGroup>
+      <_PluginPayloadFile Include="$(PluginPayloadDirectory)**" />
+      <None Include="@(_PluginPayloadFile)" Pack="true"
+            PackagePath="plugin/%(_PluginPayloadFile.RecursiveDir)%(_PluginPayloadFile.Filename)%(_PluginPayloadFile.Extension)" />
+    </ItemGroup>
+  </Target>
+</Project>

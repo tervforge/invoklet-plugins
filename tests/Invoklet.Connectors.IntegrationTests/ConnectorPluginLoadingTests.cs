@@ -1,0 +1,242 @@
+using System.IO.Compression;
+using System.Runtime.Loader;
+using Invoklet.Contracts.Connections;
+using Invoklet.Format.MdRun;
+using Invoklet.Plugins;
+using Invoklet.Plugins.Hosting;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
+using Xunit;
+
+namespace Invoklet.Connectors.IntegrationTests;
+
+[Trait("Category", "Integration")]
+public sealed class ConnectorPluginLoadingTests
+{
+    // The release check: the packed connectors, installed from their .nupkg files into an empty user folder, load at the next start
+    // with every driver in the order an installation always had.
+    [Fact]
+    public void PackedConnectors_InstallIntoAnEmptyUserFolderAndLoadAfterRestart()
+    {
+        using var package = new SampleConnectorPackage();
+        var installer = new PluginPackageInstaller(package.UserDirectory, package.Inventory, BundledPluginCatalog.Empty);
+        string[] ids = ["invoklet.connector.efcore", "invoklet.connector.http", "invoklet.connector.grpc", "invoklet.connector.sqlite",
+            "invoklet.connector.postgres", "invoklet.connector.sqlserver"];
+        var before = LoadUser(new ConnectionDriverRegistry(), package);
+
+        foreach (var id in ids)
+        {
+            using var prepared = installer.PrepareArchive(Path.Combine(AppContext.BaseDirectory, "connector-packages", id + ".1.0.0.nupkg"));
+            Assert.Equal(id, prepared.Manifest.Id);
+            installer.Install(prepared);
+        }
+
+        Assert.Empty(before.Loaded);
+        Assert.Equal(ids.Order(StringComparer.Ordinal), before.GetPendingRestart(package.Inventory.Read()).Order(StringComparer.Ordinal));
+        // The registry the desktop app and the CLI both start with, which ranks the drivers.
+        var registry = Invoklet.BuiltIns.BuiltInCatalog.CreateConnectionDrivers();
+        var restarted = LoadUser(registry, package);
+        Assert.Empty(restarted.Rejected.SelectMany(plugin => plugin.Diagnostics.Select(diagnostic => $"{plugin.Id}: {diagnostic.Message}")));
+        Assert.All(ids, id => Assert.Equal(PluginTrust.Trusted, restarted.Find(id)?.Trust));
+        Assert.Equal(["http", "openapi", "grpc", "sqlite", "postgres", "sqlserver"], registry.Drivers.Select(driver => driver.Id));
+        Assert.Equal(["invoklet.connector.efcore"], restarted.Find("invoklet.connector.sqlite")!.Manifest.DependsOn);
+        Assert.Equal("Invoklet plugin: invoklet.connector.efcore",
+            AssemblyLoadContext.GetLoadContext(registry.Find("sqlserver")!.GetType().BaseType!.Assembly)?.Name);
+    }
+
+    [Fact]
+    public void PackedProvider_WithoutEfCore_IsRejectedForTheMissingDependency()
+    {
+        using var package = new SampleConnectorPackage();
+        var installer = new PluginPackageInstaller(package.UserDirectory, package.Inventory, BundledPluginCatalog.Empty);
+        using (var prepared = installer.PrepareArchive(Path.Combine(AppContext.BaseDirectory, "connector-packages", "invoklet.connector.sqlite.1.0.0.nupkg")))
+            installer.Install(prepared);
+        var registry = new ConnectionDriverRegistry();
+
+        var session = LoadUser(registry, package);
+
+        Assert.Equal("invoklet.connector.sqlite", Assert.Single(session.Rejected).Id);
+        Assert.Null(registry.Find("sqlite"));
+    }
+
+    [Fact]
+    public void PublishedConnectors_RegisterAllDriversAndShareTheEfCorePlugin()
+    {
+        var registry = new ConnectionDriverRegistry();
+        var session = Load(registry);
+
+        Assert.Empty(session.Rejected);
+        Assert.Equal(6, session.Loaded.Count);
+        Assert.Equal(["grpc", "http", "openapi", "postgres", "sqlite", "sqlserver"],
+            registry.Drivers.Select(driver => driver.Id).Order(StringComparer.Ordinal));
+        Assert.All(registry.Drivers, driver => Assert.IsAssignableFrom<ICSharpClientSource>(driver));
+        var sqlite = registry.Find("sqlite")!;
+        var postgres = registry.Find("postgres")!;
+        Assert.Equal("Invoklet plugin: invoklet.connector.sqlite", AssemblyLoadContext.GetLoadContext(sqlite.GetType().Assembly)?.Name);
+        Assert.Same(sqlite.GetType().BaseType, postgres.GetType().BaseType);
+        Assert.Equal("Invoklet plugin: invoklet.connector.efcore",
+            AssemblyLoadContext.GetLoadContext(sqlite.GetType().BaseType!.Assembly)?.Name);
+    }
+
+    [Fact]
+    public async Task PublishedSqlite_ReadsSchemaThroughThePluginContext()
+    {
+        var registry = new ConnectionDriverRegistry();
+        var session = Load(registry);
+        Assert.Empty(session.Rejected);
+        var driver = Assert.IsAssignableFrom<IConnectionSchemaDriver>(registry.Find("sqlite"));
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var folder = Directory.CreateTempSubdirectory("Invoklet-plugin-sqlite");
+        try
+        {
+            var file = Path.Combine(folder.FullName, "demo.db");
+            await using (var database = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = file, Pooling = false }.ToString()))
+            {
+                await database.OpenAsync(cancellationToken);
+                await using var command = database.CreateCommand();
+                command.CommandText = "CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT NOT NULL);";
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            var schema = await driver.FetchSchemaAsync(new Dictionary<string, MdRunValue> { ["file"] = MdRunValue.Of(file) },
+                new ConnectionTools { GetPackageFolderAsync = (_, _, _) => throw new InvalidOperationException("SQLite requires no schema tools.") },
+                cancellationToken);
+            Assert.Contains(schema.Files, source => source.Text.Contains("Products", StringComparison.Ordinal));
+        }
+        finally { folder.Delete(recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DisablingEfCore_DisablesDirectAndTransitiveDependants(bool installedDuringSession)
+    {
+        const string library = "invoklet.connector.efcore";
+        const string sqlite = "invoklet.connector.sqlite";
+        const string sample = "example.connector.http";
+        string[] affected = [sample, library, "invoklet.connector.postgres", sqlite, "invoklet.connector.sqlserver"];
+        using var package = new SampleConnectorPackage();
+        var store = package.Inventory;
+        var bundled = BundledCatalog();
+        var installer = new PluginPackageInstaller(package.UserDirectory, store, bundled);
+        using var prepared = installer.PrepareArchive(package.CreatePackage(dependency: sqlite));
+        var registry = new ConnectionDriverRegistry();
+        if (!installedDuringSession) installer.Install(prepared);
+        var current = Load(registry, store.Read(), package.UserDirectory);
+        if (installedDuringSession) installer.Install(prepared);
+        Assert.Equal(!installedDuringSession, registry.Find("sample-http") is not null);
+        store.SetEnabled(library, false, bundled, bundledRoles: ["library"], session: current,
+            userDirectory: package.UserDirectory);
+
+        Assert.Equal(affected, current.GetPendingRestart(store.Read()));
+        Assert.NotNull(registry.Find("sqlite"));
+        var restartedRegistry = new ConnectionDriverRegistry();
+        var restarted = Load(restartedRegistry, store.Read(), package.UserDirectory);
+        Assert.Equal(affected, restarted.Rejected.Select(plugin => plugin.Id).Order(StringComparer.Ordinal));
+        Assert.All(restarted.Rejected, plugin =>
+            Assert.Contains(plugin.Diagnostics, diagnostic => diagnostic.Code == PluginDiagnosticCode.PluginDisabled));
+        Assert.NotNull(restartedRegistry.Find("http"));
+        Assert.Null(restartedRegistry.Find("sqlite"));
+
+        Assert.Throws<PluginRegistrationException>(() => store.SetEnabled(sqlite, true, bundled, session: restarted));
+        store.SetEnabled(library, true, bundled, session: restarted);
+        Assert.True(Load(new ConnectionDriverRegistry(), store.Read()).IsLoaded(library));
+        Assert.False(Load(new ConnectionDriverRegistry(), store.Read()).IsLoaded(sqlite));
+        store.SetEnabled(sqlite, true, bundled, session: restarted);
+        Assert.True(Load(new ConnectionDriverRegistry(), store.Read()).IsLoaded(sqlite));
+    }
+
+    [Fact]
+    public void DisabledBundledConnector_IsOmittedOnNextStart()
+    {
+        var folder = Directory.CreateTempSubdirectory("Invoklet-connector-inventory");
+        try
+        {
+            const string id = "invoklet.connector.http";
+            var store = new PluginInventoryStore(Path.Combine(folder.FullName, PluginInventory.FileName));
+            store.SetEnabled(id, false, BundledCatalog(), bundledRoles: ["connection"]);
+            Assert.Equal(["connection"], Assert.Single(store.Read().Entries).Roles);
+            var registry = new ConnectionDriverRegistry();
+
+            var session = Load(registry, store.Read());
+
+            Assert.Null(registry.Find("http"));
+            Assert.Null(registry.Find("openapi"));
+            Assert.Contains(Assert.Single(session.Rejected).Diagnostics, diagnostic => diagnostic.Code == PluginDiagnosticCode.PluginDisabled);
+            Assert.NotNull(registry.Find("sqlite"));
+        }
+        finally { folder.Delete(recursive: true); }
+    }
+
+    [Fact]
+    public void DuplicateOpenApiDriver_RollsBackHttpWithoutRemovingTheExistingDriver()
+    {
+        var registry = new ConnectionDriverRegistry();
+        var existing = new Invoklet.Connectors.Http.OpenApiConnectionDriver();
+        registry.Register(existing);
+
+        var session = Load(registry);
+
+        var rejected = Assert.Single(session.Rejected);
+        Assert.Equal("invoklet.connector.http", rejected.Id);
+        Assert.Contains(rejected.Diagnostics, diagnostic => diagnostic.Code == PluginDiagnosticCode.RegistrationFailed);
+        Assert.Null(registry.Find("http"));
+        Assert.Same(existing, registry.Find("openapi"));
+        Assert.NotNull(registry.Find("grpc"));
+    }
+
+    private static string PackageDirectory => Path.Combine(AppContext.BaseDirectory, "connector-fixtures", "plugins");
+
+    private static BundledPluginCatalog BundledCatalog() =>
+        BundledPluginCatalog.Read(Path.Combine(PackageDirectory, BundledPluginCatalog.FileName));
+
+    private static PluginSession LoadUser(ConnectionDriverRegistry registry, SampleConnectorPackage package) =>
+        new PluginLoader(new PluginLoaderOptions
+        {
+            ApplicationVersion = new Version(1, 0),
+            UserDirectory = package.UserDirectory,
+            Inventory = package.Inventory.Read(),
+            NativeLibraryCacheDirectory = Path.Combine(AppContext.BaseDirectory, "connector-native-cache"),
+        }, [new ConnectionPluginRoleHandler(registry)], NullLoggerFactory.Instance).Load();
+
+    private static PluginSession Load(ConnectionDriverRegistry registry, PluginInventory? inventory = null, string? userDirectory = null) =>
+        new PluginLoader(new PluginLoaderOptions
+        {
+            ApplicationVersion = new Version(1, 0),
+            BundledDirectory = PackageDirectory,
+            BundledCatalog = BundledCatalog(),
+            Inventory = inventory ?? PluginInventory.Empty,
+            UserDirectory = userDirectory,
+            NativeLibraryCacheDirectory = Path.Combine(AppContext.BaseDirectory, "connector-native-cache"),
+        }, [new ConnectionPluginRoleHandler(registry)], NullLoggerFactory.Instance).Load();
+}
+
+internal sealed class SampleConnectorPackage : IDisposable
+{
+    private readonly DirectoryInfo _root = Directory.CreateTempSubdirectory("Invoklet-connector-install");
+    public string UserDirectory => Path.Combine(_root.FullName, "plugins");
+    public PluginInventoryStore Inventory => new(Path.Combine(_root.FullName, PluginInventory.FileName));
+
+    /// <summary>Packs the sample connector as a NuGet package with its files under <c>plugin/</c>.</summary>
+    public string CreatePackage(string? dependency = null)
+    {
+        var source = _root.CreateSubdirectory("source").FullName;
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "SampleHttpConnector.dll"), Path.Combine(source, "SampleHttpConnector.dll"));
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "sample-http-connector.json"), Path.Combine(source, PluginContracts.ManifestFileName));
+        if (dependency is not null)
+        {
+            var manifestPath = Path.Combine(source, PluginContracts.ManifestFileName);
+            var manifest = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifestPath))!;
+            manifest["dependsOn"] = new System.Text.Json.Nodes.JsonArray(System.Text.Json.Nodes.JsonValue.Create(dependency));
+            File.WriteAllText(manifestPath, manifest.ToJsonString());
+        }
+
+        var archive = Path.Combine(_root.FullName, "sample.nupkg");
+        using var zip = ZipFile.Open(archive, ZipArchiveMode.Create);
+        foreach (var file in Directory.EnumerateFiles(source))
+            zip.CreateEntryFromFile(file, "plugin/" + Path.GetFileName(file));
+        return archive;
+    }
+
+    public void Dispose() => _root.Delete(recursive: true);
+}

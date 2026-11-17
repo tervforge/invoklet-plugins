@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../PluginPackage.props" />
+  <PropertyGroup>
+    <RootNamespace>Invoklet.Connectors.Postgres</RootNamespace>
+    <Description>PostgreSQL connections for Invoklet.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.Connectors.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The EF Core plugin, which the manifest lists in dependsOn. -->
+    <ProjectReference Include="../Invoklet.Connectors.EfCore/Invoklet.Connectors.EfCore.csproj" />
+  </ItemGroup>
+  <Import Project="../../build/EfCoreDesign.props" />
+</Project>

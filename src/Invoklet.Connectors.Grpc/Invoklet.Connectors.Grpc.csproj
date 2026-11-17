@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../PluginPackage.props" />
+  <PropertyGroup>
+    <RootNamespace>Invoklet.Connectors.Grpc</RootNamespace>
+    <Description>gRPC connections for Invoklet.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Invoklet.Contracts" />
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Grpc.Reflection" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.Connectors.Tests" />
+    <InternalsVisibleTo Include="Invoklet.Connectors.IntegrationTests" />
+  </ItemGroup>
+</Project>

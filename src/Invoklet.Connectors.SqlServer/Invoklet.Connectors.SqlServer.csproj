@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../PluginPackage.props" />
+  <PropertyGroup>
+    <RootNamespace>Invoklet.Connectors.SqlServer</RootNamespace>
+    <Description>SQL Server connections for Invoklet.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Invoklet.Connectors.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The EF Core plugin, which the manifest lists in dependsOn. -->
+    <ProjectReference Include="../Invoklet.Connectors.EfCore/Invoklet.Connectors.EfCore.csproj" />
+  </ItemGroup>
+  <Import Project="../../build/EfCoreDesign.props" />
+</Project>

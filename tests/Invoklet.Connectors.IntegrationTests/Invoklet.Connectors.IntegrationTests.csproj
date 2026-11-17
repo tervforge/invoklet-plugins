@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Real SQLite files, gRPC and database servers, provider reverse engineering, compiled scripts and the packed plugins loaded by the
+       plugin host. Server tests require INVOKLET_TEST_* variables. Not run when CI is set; run them explicitly (see README.md). -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject Condition="'$(CI)' == 'true'">false</IsTestProject>
+    <RootNamespace>Invoklet.Connectors.IntegrationTests</RootNamespace>
+    <InvokletBundledPluginsBuildSubdirectory>connector-fixtures</InvokletBundledPluginsBuildSubdirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <!-- A gRPC server with server reflection, on a loopback port, for the gRPC connection's tests. -->
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.AspNetCore.Server.Reflection" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Protobuf Include="Connectors.Grpc\inventory.proto" GrpcServices="Server" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(InvokletRoot)src/main/Invoklet/Invoklet.csproj" />
+    <ProjectReference Include="../../src/Invoklet.Connectors.Http/Invoklet.Connectors.Http.csproj" />
+    <ProjectReference Include="../../src/Invoklet.Connectors.Grpc/Invoklet.Connectors.Grpc.csproj" />
+    <ProjectReference Include="../../src/Invoklet.Connectors.Sqlite/Invoklet.Connectors.Sqlite.csproj" />
+    <ProjectReference Include="../../src/Invoklet.Connectors.Postgres/Invoklet.Connectors.Postgres.csproj" />
+    <ProjectReference Include="../../src/Invoklet.Connectors.SqlServer/Invoklet.Connectors.SqlServer.csproj" />
+    <!-- The sample third-party connector of Invoklet's plugin documentation, installed beside the bundled ones. -->
+    <ProjectReference Include="$(InvokletRoot)tests/fixtures/plugins/SampleHttpConnector/SampleHttpConnector.csproj"
+                      ReferenceOutputAssembly="false" OutputItemType="Content" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="$(InvokletRoot)tests/fixtures/plugins/SampleHttpConnector/invoklet-plugin.json"
+          Link="sample-http-connector.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Import Project="../../build/ConnectorPayloads.targets" />
+</Project>

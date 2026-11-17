@@ -1,0 +1,32 @@
+<Project>
+  <!-- Stages every connector's published payload as Invoklet bundles it (plugins/<role>/<id> and bundled.json), so the integration
+       tests load the connectors through the plugin host exactly as an installation does. -->
+  <PropertyGroup>
+    <InvokletPluginSourceTargets>StageConnectorPayloads</InvokletPluginSourceTargets>
+    <_ConnectorHostProperties>OutDir;OutputPath;PublishDir;SelfContained;PublishSelfContained;PublishSingleFile;PublishAot;PublishTrimmed;PublishReadyToRun</_ConnectorHostProperties>
+  </PropertyGroup>
+  <ItemGroup>
+    <ConnectorProject Include="$(MSBuildThisFileDirectory)../src/Invoklet.Connectors.EfCore/Invoklet.Connectors.EfCore.csproj" PluginPath="library/invoklet.connector.efcore" />
+    <ConnectorProject Include="$(MSBuildThisFileDirectory)../src/Invoklet.Connectors.Http/Invoklet.Connectors.Http.csproj" PluginPath="connection/invoklet.connector.http" />
+    <ConnectorProject Include="$(MSBuildThisFileDirectory)../src/Invoklet.Connectors.Grpc/Invoklet.Connectors.Grpc.csproj" PluginPath="connection/invoklet.connector.grpc" />
+    <ConnectorProject Include="$(MSBuildThisFileDirectory)../src/Invoklet.Connectors.Sqlite/Invoklet.Connectors.Sqlite.csproj" PluginPath="connection/invoklet.connector.sqlite" />
+    <ConnectorProject Include="$(MSBuildThisFileDirectory)../src/Invoklet.Connectors.Postgres/Invoklet.Connectors.Postgres.csproj" PluginPath="connection/invoklet.connector.postgres" />
+    <ConnectorProject Include="$(MSBuildThisFileDirectory)../src/Invoklet.Connectors.SqlServer/Invoklet.Connectors.SqlServer.csproj" PluginPath="connection/invoklet.connector.sqlserver" />
+    <ProjectReference Include="@(ConnectorProject)" ReferenceOutputAssembly="false" Private="false" GlobalPropertiesToRemove="$(_ConnectorHostProperties)" />
+  </ItemGroup>
+  <Target Name="StageConnectorPayloads">
+    <PropertyGroup>
+      <_ConnectorPayloadDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(IntermediateOutputPath)connector-payloads'))</_ConnectorPayloadDirectory>
+      <InvokletBundledPluginsSource>$(_ConnectorPayloadDirectory)</InvokletBundledPluginsSource>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_ConnectorPayloadDirectory)" Condition="Exists('$(_ConnectorPayloadDirectory)')" />
+    <MSBuild Projects="@(ConnectorProject)" Targets="Publish" RemoveProperties="OutDir;OutputPath;PublishSelfContained;PublishSingleFile;PublishAot;PublishTrimmed;PublishReadyToRun"
+             Properties="PublishDir=$(_ConnectorPayloadDirectory)/%(ConnectorProject.PluginPath)/;NoBuild=true;PluginPayloadProject=%(ConnectorProject.Filename)" />
+  </Target>
+  <!-- The packages themselves, for the test that installs them into an empty user folder. -->
+  <Target Name="PackConnectorPackages" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+    <MSBuild Projects="@(ConnectorProject)" Targets="Pack" RemoveProperties="OutDir;OutputPath;PublishDir;PublishSelfContained;PublishSingleFile;PublishAot;PublishTrimmed;PublishReadyToRun"
+             Properties="NoBuild=true;PackageOutputPath=$([System.IO.Path]::GetFullPath('$(OutDir)connector-packages'))" />
+  </Target>
+  <Import Project="$(InvokletRoot)build/BundledPlugins.targets" />
+</Project>
