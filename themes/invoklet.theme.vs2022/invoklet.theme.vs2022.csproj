@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>invoklet.theme.vs2022</PackageId>
+    <Version>1.0.0</Version>
+    <Description>VS 2022 light and dark interface themes for Invoklet.</Description>
+  </PropertyGroup>
+  <Import Project="../../ThemePackage.props" />
+</Project>
