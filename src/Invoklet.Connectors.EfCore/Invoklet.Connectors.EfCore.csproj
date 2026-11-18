@@ -7,7 +7,6 @@
     <Description>Entity Framework Core schema reader shared by the Invoklet database connectors.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Invoklet.Contracts" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <!-- The design package asks for Roslyn 5.0; Invoklet uses a newer one. -->

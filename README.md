@@ -37,6 +37,11 @@ dotnet nuget update source invoklet --source https://nuget.pkg.github.com/tervfo
   --username <user> --password <token with read:packages> --store-password-in-clear-text --configfile nuget.config
 ```
 
+The `Packages` workflow packs and tests on every pull request; run it by hand with **publish** to push the contract and
+connector packages to GitHub Packages. A version already published is skipped: raise the version in `invoklet-plugin.json` (and
+in Invoklet's `build/ConnectorPlugins.targets`) to publish a change. Give the `invoklet` repository read access to the packages
+in their GitHub settings so its release builds can restore them.
+
 NuGet keeps a package version once it has restored it: after repacking the same version, delete its folder under
 `~/.nuget/packages` or raise the version.
 

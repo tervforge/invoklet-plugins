@@ -21,6 +21,12 @@
     <PluginPayloadDirectory>$(BaseIntermediateOutputPath)plugin-payload/</PluginPayloadDirectory>
     <PluginRuntimes>;win;win-x64;win-arm64;unix;osx;osx-x64;osx-arm64;linux;linux-x64;linux-arm64;</PluginRuntimes>
   </PropertyGroup>
+  <!-- The contracts the plugin compiles against. Invoklet supplies its own copies at run time, so the payload leaves them out. -->
+  <ItemGroup>
+    <PackageReference Include="Invoklet.Plugins" ExcludeAssets="runtime" />
+    <PackageReference Include="Invoklet.Contracts" ExcludeAssets="runtime" />
+    <PackageReference Include="Invoklet.Format.MdRun" ExcludeAssets="runtime" />
+  </ItemGroup>
   <ItemGroup>
     <!-- Only the plugin being packed publishes its manifest: a referenced plugin (EF Core) has a manifest of its own. -->
     <None Include="invoklet-plugin.json" CopyToPublishDirectory="PreserveNewest" Condition="'$(PluginPayloadProject)' == '$(MSBuildProjectName)'" />

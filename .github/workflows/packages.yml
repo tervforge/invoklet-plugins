@@ -1,0 +1,62 @@
+name: Packages
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Push the contract and connector packages to GitHub Packages
+        type: boolean
+        default: false
+      invoklet-ref:
+        description: The Invoklet branch or tag the contracts and tests are built from
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  packages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # only the publish step uses it
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Invoklet checkout
+        uses: actions/checkout@v5
+        with:
+          repository: tervforge/invoklet
+          ref: ${{ inputs.invoklet-ref || 'main' }}
+          path: invoklet-src
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Contract packages
+        run: |
+          set -e
+          for p in Invoklet.Plugins Invoklet.Contracts Invoklet.Format.MdRun; do
+            dotnet pack "invoklet-src/src/core/$p" -c Release -o artifacts/contracts
+          done
+
+      - name: Connector packages
+        run: dotnet pack PluginPackages.slnx -c Release -warnaserror -o artifacts/packages
+
+      # The integration tests need database servers and run explicitly (README.md); CI=true leaves them out.
+      - name: Unit tests
+        run: dotnet test tests/Invoklet.Connectors.Tests -c Release -p:InvokletRoot="$GITHUB_WORKSPACE/invoklet-src/"
+
+      - name: Publish to GitHub Packages
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        run: |
+          set -e
+          for folder in contracts packages; do
+            dotnet nuget push "artifacts/$folder/*.nupkg" --source https://nuget.pkg.github.com/tervforge/index.json \
+              --api-key "${{ secrets.GITHUB_TOKEN }}" --skip-duplicate
+          done
