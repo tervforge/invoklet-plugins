@@ -64,6 +64,7 @@ jobs:
       - name: Tests
         run: |
           set -e
+          dotnet build invoklet-src/build/Invoklet.PluginPackager/Invoklet.PluginPackager.csproj -c Release -warnaserror
           dotnet build Tests.slnx -c Release -warnaserror -p:InvokletRoot="$GITHUB_WORKSPACE/invoklet-src/"
           dotnet test tests/Invoklet.Connectors.Tests -c Release --no-build -p:InvokletRoot="$GITHUB_WORKSPACE/invoklet-src/"
           dotnet test tests/Invoklet.Themes.Tests -c Release --no-build -p:InvokletRoot="$GITHUB_WORKSPACE/invoklet-src/"
