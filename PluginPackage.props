@@ -1,23 +1,14 @@
 <Project>
+  <Import Project="$(MSBuildThisFileDirectory)build/PluginIdentity.props" />
   <!-- A connector plugin package: the published plugin (manifest, assemblies, .deps.json, native assets) under plugin/, and nothing else.
        The package id and version come from invoklet-plugin.json, so the two cannot drift apart. -->
   <PropertyGroup>
-    <_PluginManifestText>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/invoklet-plugin.json'))</_PluginManifestText>
-    <_PluginManifestId>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"id"\s*:\s*"([^"]+)"').Groups[1].Value)</_PluginManifestId>
-    <_PluginManifestVersion>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"version"\s*:\s*"([^"]+)"').Groups[1].Value)</_PluginManifestVersion>
-    <PackageId>$(_PluginManifestId)</PackageId>
-    <Version>$(_PluginManifestVersion)</Version>
     <IsPackable>true</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <!-- Every runtime dependency is in the payload; plugin dependencies are the manifest's dependsOn. -->
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
-    <Authors>Tervforge</Authors>
     <Description>Invoklet connection plugin.</Description>
-    <RepositoryUrl>https://github.com/tervforge/invoklet-plugins</RepositoryUrl>
-    <PackageTags>invoklet plugin</PackageTags>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <!-- The payload is portable: native assets travel under runtimes/ and the plugin's .deps.json picks one. Only the runtimes
          Invoklet ships for are kept; the others would only grow the package. -->
     <PluginPayloadDirectory>$(BaseIntermediateOutputPath)plugin-payload/</PluginPayloadDirectory>
@@ -32,12 +23,7 @@
   <ItemGroup>
     <!-- Only the plugin being packed publishes its manifest: a referenced plugin (EF Core) has a manifest of its own. -->
     <None Include="invoklet-plugin.json" CopyToPublishDirectory="PreserveNewest" Condition="'$(PluginPayloadProject)' == '$(MSBuildProjectName)'" />
-    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" Visible="false" />
   </ItemGroup>
-  <Target Name="CheckPluginManifestIdentity" BeforeTargets="Build;GenerateNuspec">
-    <Error Condition="'$(_PluginManifestId)' == '' or '$(_PluginManifestVersion)' == ''"
-           Text="invoklet-plugin.json must give the plugin's id and version as plain strings; they are the package id and version." />
-  </Target>
   <Target Name="AddPluginPayloadToPackage" BeforeTargets="_GetPackageFiles">
     <RemoveDir Directories="$(PluginPayloadDirectory)" />
     <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish"

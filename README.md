@@ -1,6 +1,19 @@
 # Invoklet plugins
 
-The connection connectors of [Invoklet](https://github.com/tervforge/invoklet), each a NuGet package:
+The official plugins of [Invoklet](https://github.com/tervforge/invoklet), each a NuGet package: the connection connectors under
+`src/`, which Invoklet bundles, and theme packages under `themes/`, which users install from **Preferences → Plugins** and then
+pick in **Preferences → Appearance**.
+
+| Package | Plugin role | Contents |
+| --- | --- | --- |
+| `invoklet.theme.vscode` | theme | VS Code light and dark palettes |
+| `invoklet.theme.rider` | theme | Rider light and dark palettes |
+| `invoklet.theme.vs2022` | theme | Visual Studio 2022 light and dark palettes |
+
+A theme package holds only `invoklet-plugin.json` and the palettes it lists, under `plugin/` (`ThemePackage.props`).
+`tests/Invoklet.Themes.Tests` checks that every palette defines exactly Invoklet's palette keys.
+
+The connectors:
 
 | Package | Plugin role | Drivers |
 | --- | --- | --- |

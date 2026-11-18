@@ -1,0 +1,23 @@
+<Project>
+  <!-- What every package of this repository shares: its id and version are the ones invoklet-plugin.json gives, so the two cannot
+       drift apart, and the package metadata. -->
+  <PropertyGroup>
+    <_PluginManifestText>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/invoklet-plugin.json'))</_PluginManifestText>
+    <_PluginManifestId>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"id"\s*:\s*"([^"]+)"').Groups[1].Value)</_PluginManifestId>
+    <_PluginManifestVersion>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"version"\s*:\s*"([^"]+)"').Groups[1].Value)</_PluginManifestVersion>
+    <PackageId>$(_PluginManifestId)</PackageId>
+    <Version>$(_PluginManifestVersion)</Version>
+    <Authors>Tervforge</Authors>
+    <RepositoryUrl>https://github.com/tervforge/invoklet-plugins</RepositoryUrl>
+    <PackageTags>invoklet plugin</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+  <Target Name="CheckPluginManifestIdentity" BeforeTargets="Build;GenerateNuspec">
+    <Error Condition="'$(_PluginManifestId)' == '' or '$(_PluginManifestVersion)' == ''"
+           Text="invoklet-plugin.json must give the plugin's id and version as plain strings; they are the package id and version." />
+  </Target>
+</Project>
