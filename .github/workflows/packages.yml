@@ -13,15 +13,11 @@ on:
   workflow_dispatch:
     inputs:
       invoklet-ref:
-        description: The Invoklet branch or tag the contracts and tests are built from
-        default: dev
+        description: The Invoklet commit, branch or tag to build against instead of InvokletCommit in Directory.Build.props
+        default: ''
 
 permissions:
   contents: read
-
-env:
-  # The contracts and the application the tests run scripts through. Invoklet's dev branch holds the plugin-host work.
-  INVOKLET_REF: ${{ inputs.invoklet-ref || 'dev' }}
 
 jobs:
   test:
@@ -29,11 +25,19 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # The contracts and the application the tests run scripts through, at the commit Directory.Build.props pins.
+      - name: Invoklet revision
+        id: invoklet
+        run: |
+          ref="${{ inputs.invoklet-ref }}"
+          [ -n "$ref" ] || ref=$(sed -n 's:.*<InvokletCommit>\(.*\)</InvokletCommit>.*:\1:p' Directory.Build.props)
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
       - name: Invoklet checkout
         uses: actions/checkout@v5
         with:
           repository: tervforge/invoklet
-          ref: ${{ env.INVOKLET_REF }}
+          ref: ${{ steps.invoklet.outputs.ref }}
           path: invoklet-src
 
       - uses: actions/setup-dotnet@v5
@@ -80,32 +84,40 @@ jobs:
           name: connector-packages
           path: artifacts/packages
 
-      - name: Check versions
+      # A version is pushed only once GitHub Packages confirmed it is not there; one already there is fine only when its sources did
+      # not change. Any other answer from the API stops the job, so a failed lookup never passes an old package off as new.
+      - name: Publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BEFORE: ${{ github.event.before }}
+          API_KEY: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
-          shared="PluginPackage.props Directory.Build.props Directory.Packages.props build"
+          set -euo pipefail
+          shared="PluginPackage.props ThemePackage.props Directory.Build.props Directory.Packages.props build"
           if [ "$(jq -r .version src/*/invoklet-plugin.json | sort -u | wc -l)" -ne 1 ]; then
             echo "::error::The connectors are released under one version; their invoklet-plugin.json files disagree."
             exit 1
           fi
+          published() {
+            local versions status
+            if versions=$(gh api "orgs/tervforge/packages/nuget/$1/versions" --paginate --jq '.[].name' 2>/tmp/gh-error); then
+              grep -qx "$2" <<< "$versions" && return 0 || return 1
+            fi
+            if grep -q "HTTP 404" /tmp/gh-error; then return 1; fi
+            echo "::error::Could not read the published versions of $1:"; cat /tmp/gh-error; exit 1
+          }
           for manifest in src/*/invoklet-plugin.json themes/*/invoklet-plugin.json; do
             dir=$(dirname "$manifest")
             id=$(jq -r .id "$manifest")
             version=$(jq -r .version "$manifest")
-            changed=true
-            if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-              git diff --quiet "$BEFORE" HEAD -- "$dir" $shared && changed=false
-            fi
-            if gh api "orgs/tervforge/packages/nuget/$id/versions" --jq '.[].name' 2>/dev/null | grep -qx "$version" && [ "$changed" = true ]; then
-              echo "::error::$id $version is already published and $dir changed: raise the version in $manifest."
+            if published "$id" "$version"; then
+              if git cat-file -e "$BEFORE^{commit}" 2>/dev/null && git diff --quiet "$BEFORE" HEAD -- "$dir" $shared; then
+                echo "$id $version is published and unchanged."
+                continue
+              fi
+              echo "::error::$id $version is already published and $dir may have changed: raise the version in $manifest."
               exit 1
             fi
+            dotnet nuget push "artifacts/packages/$id.$version.nupkg" --source https://nuget.pkg.github.com/tervforge/index.json \
+              --api-key "$API_KEY" --no-symbols
           done
-
-      - name: Publish
-        run: >
-          dotnet nuget push "artifacts/packages/*.nupkg" --source https://nuget.pkg.github.com/tervforge/index.json
-          --api-key "${{ secrets.GITHUB_TOKEN }}" --skip-duplicate --no-symbols

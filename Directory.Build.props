@@ -6,6 +6,9 @@
     <NoWarn>$(NoWarn);IDE0007;IDE0008;CS1591;CA2007;</NoWarn>
     <!-- Satellite resources of Roslyn and EF Core would multiply the package size and entry count; Invoklet shows English messages. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- The Invoklet commit these plugins are built and tested against in CI (its contracts and its application); moved on
+         deliberately, together with the plugins that need a newer Invoklet. -->
+    <InvokletCommit>e6b8cbee2c4e0be9fac766d20701441862020133</InvokletCommit>
     <!-- An Invoklet source checkout, for the tests that compile and run scripts through the application. -->
     <InvokletRoot Condition="'$(InvokletRoot)' == ''">$(MSBuildThisFileDirectory)../invoklet/</InvokletRoot>
     <InvokletRoot>$([MSBuild]::EnsureTrailingSlash('$(InvokletRoot)'))</InvokletRoot>
