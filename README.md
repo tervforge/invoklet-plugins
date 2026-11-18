@@ -61,6 +61,22 @@ to the connector packages in their GitHub settings.
 NuGet keeps a package version once it has restored it: after repacking the same version, delete its folder under
 `~/.nuget/packages` or raise the version.
 
+## Plugin feed
+
+GitHub Packages asks for a token even for public packages, so Invoklet's **Preferences → Plugins → Available plugins** reads an
+anonymous NuGet v3 feed on this repository's GitHub Pages instead: `https://tervforge.github.io/invoklet-plugins/v3/index.json`.
+After publishing, the `pages` job of the `Packages` workflow writes it with `build/static_feed.py` from this run's packages and
+every version GitHub Packages already has of the same ids, and deploys it. The feed has a package base address (versions and
+`.nupkg` files) and a search endpoint that is one static JSON file listing every package; Invoklet filters the listing itself.
+
+To try it locally, write the feed for a local address, serve the folder and point Invoklet at it:
+
+```sh
+python3 build/static_feed.py --base-url http://127.0.0.1:8765/invoklet-plugins/ --packages artifacts/packages --out feed/invoklet-plugins
+python3 -m http.server 8765 --bind 127.0.0.1 --directory feed
+INVOKLET_PLUGIN_FEED=http://127.0.0.1:8765/invoklet-plugins/v3/index.json  # in the environment Invoklet starts with
+```
+
 ## Tests
 
 The tests compile and run scripts through Invoklet itself, so they need an Invoklet checkout: `../invoklet` by default, or another

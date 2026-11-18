@@ -1,7 +1,8 @@
 name: Packages
 
 # Every pull request and push packs the six connectors and the theme packages and runs their tests; a push to main then publishes
-# them to GitHub Packages, which Invoklet's release builds restore. Each theme has its own version; the six connectors share one, and a published version is never replaced: a change
+# them to GitHub Packages, which Invoklet's release builds restore, and deploys the anonymous feed on GitHub Pages that Invoklet's
+# Preferences → Plugins reads (build/static_feed.py). Each theme has its own version; the six connectors share one, and a published version is never replaced: a change
 # to a connector needs a new version in every invoklet-plugin.json (and Invoklet's build/ConnectorPlugins.targets), and the publish
 # job fails without one.
 
@@ -128,3 +129,48 @@ jobs:
             dotnet nuget push "artifacts/packages/$id.$version.nupkg" --source https://nuget.pkg.github.com/tervforge/index.json \
               --api-key "$API_KEY" --no-symbols
           done
+
+  # GitHub Packages needs a token even for public packages, so users install from a static NuGet v3 feed on GitHub Pages. Each
+  # deployment replaces the site: the feed republishes every version GitHub Packages has of these ids, plus this run's packages.
+  pages:
+    if: github.event_name == 'push'
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: connector-packages
+          path: artifacts/packages
+
+      - name: Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Static feed
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+        run: |
+          python3 build/static_feed.py --base-url "$PAGES_BASE_URL/" --packages artifacts/packages \
+            --mirror https://nuget.pkg.github.com/tervforge/index.json --out site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4
