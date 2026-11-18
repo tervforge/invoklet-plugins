@@ -1,0 +1,14 @@
+<Project>
+  <!-- A theme package: data only, the manifest and the palettes it lists under plugin/, no assembly. -->
+  <Import Project="$(MSBuildThisFileDirectory)build/PluginIdentity.props" />
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="*.json" Pack="true" PackagePath="plugin/" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Checks the theme packages against the theme keys of an Invoklet checkout at $(InvokletRoot). -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Invoklet.Themes.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(InvokletRoot)src/controls/Invoklet.Avalonia.Themes/Invoklet.Avalonia.Themes.csproj" />
+  </ItemGroup>
+</Project>

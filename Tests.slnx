@@ -10,5 +10,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Invoklet.Connectors.IntegrationTests/Invoklet.Connectors.IntegrationTests.csproj" />
     <Project Path="tests/Invoklet.Connectors.Tests/Invoklet.Connectors.Tests.csproj" />
+    <Project Path="tests/Invoklet.Themes.Tests/Invoklet.Themes.Tests.csproj" />
   </Folder>
 </Solution>

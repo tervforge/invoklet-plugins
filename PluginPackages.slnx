@@ -7,4 +7,9 @@
     <Project Path="src/Invoklet.Connectors.SqlServer/Invoklet.Connectors.SqlServer.csproj" />
     <Project Path="src/Invoklet.Connectors.Sqlite/Invoklet.Connectors.Sqlite.csproj" />
   </Folder>
+  <Folder Name="/themes/">
+    <Project Path="themes/invoklet.theme.rider/invoklet.theme.rider.csproj" />
+    <Project Path="themes/invoklet.theme.vs2022/invoklet.theme.vs2022.csproj" />
+    <Project Path="themes/invoklet.theme.vscode/invoklet.theme.vscode.csproj" />
+  </Folder>
 </Solution>

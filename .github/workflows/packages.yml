@@ -1,0 +1,130 @@
+name: Packages
+
+# Every pull request and push packs the six connectors and the theme packages and runs their tests; a push to main then publishes
+# them to GitHub Packages, which Invoklet's release builds restore. Each theme has its own version; the six connectors share one, and a published version is never replaced: a change
+# to a connector needs a new version in every invoklet-plugin.json (and Invoklet's build/ConnectorPlugins.targets), and the publish
+# job fails without one.
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      invoklet-ref:
+        description: The Invoklet commit, branch or tag to build against instead of InvokletCommit in Directory.Build.props
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # The contracts and the application the tests run scripts through, at the commit Directory.Build.props pins.
+      - name: Invoklet revision
+        id: invoklet
+        env:
+          INVOKLET_REF_OVERRIDE: ${{ inputs.invoklet-ref }}
+        run: |
+          ref="$INVOKLET_REF_OVERRIDE"
+          [ -n "$ref" ] || ref=$(sed -n 's:.*<InvokletCommit>\(.*\)</InvokletCommit>.*:\1:p' Directory.Build.props)
+          if [ -z "$ref" ]; then
+            echo "::error::Directory.Build.props does not pin InvokletCommit."
+            exit 1
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - name: Invoklet checkout
+        uses: actions/checkout@v5
+        with:
+          repository: tervforge/invoklet
+          ref: ${{ steps.invoklet.outputs.ref }}
+          path: invoklet-src
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Contract packages
+        run: |
+          set -e
+          for p in Invoklet.Plugins Invoklet.Contracts Invoklet.Format.MdRun; do
+            dotnet pack "invoklet-src/src/core/$p" -c Release -o artifacts/contracts
+          done
+
+      - name: Connector packages
+        run: dotnet pack PluginPackages.slnx -c Release -warnaserror -o artifacts/packages
+
+      # Builds the integration tests too, so they keep compiling; CI=true leaves them out of the run (they need servers, README.md).
+      - name: Tests
+        run: |
+          set -e
+          dotnet build invoklet-src/build/Invoklet.PluginPackager/Invoklet.PluginPackager.csproj -c Release -warnaserror
+          dotnet build Tests.slnx -c Release -warnaserror -p:InvokletRoot="$GITHUB_WORKSPACE/invoklet-src/"
+          dotnet test tests/Invoklet.Connectors.Tests -c Release --no-build -p:InvokletRoot="$GITHUB_WORKSPACE/invoklet-src/"
+          dotnet test tests/Invoklet.Themes.Tests -c Release --no-build -p:InvokletRoot="$GITHUB_WORKSPACE/invoklet-src/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: connector-packages
+          path: artifacts/packages/*.nupkg
+
+  publish:
+    if: github.event_name == 'push'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: connector-packages
+          path: artifacts/packages
+
+      # A version is pushed only once GitHub Packages confirmed it is not there; one already there is fine only when its sources did
+      # not change. Any other answer from the API stops the job, so a failed lookup never passes an old package off as new.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BEFORE: ${{ github.event.before }}
+          API_KEY: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          shared="PluginPackage.props ThemePackage.props Directory.Build.props Directory.Packages.props build"
+          if [ "$(jq -r .version src/*/invoklet-plugin.json | sort -u | wc -l)" -ne 1 ]; then
+            echo "::error::The connectors are released under one version; their invoklet-plugin.json files disagree."
+            exit 1
+          fi
+          published() {
+            local versions status
+            if versions=$(gh api "orgs/tervforge/packages/nuget/$1/versions" --paginate --jq '.[].name' 2>/tmp/gh-error); then
+              grep -qx "$2" <<< "$versions" && return 0 || return 1
+            fi
+            if grep -q "HTTP 404" /tmp/gh-error; then return 1; fi
+            echo "::error::Could not read the published versions of $1:"; cat /tmp/gh-error; exit 1
+          }
+          for manifest in src/*/invoklet-plugin.json themes/*/invoklet-plugin.json; do
+            dir=$(dirname "$manifest")
+            id=$(jq -r .id "$manifest")
+            version=$(jq -r .version "$manifest")
+            if published "$id" "$version"; then
+              if git cat-file -e "$BEFORE^{commit}" 2>/dev/null && git diff --quiet "$BEFORE" HEAD -- "$dir" $shared; then
+                echo "$id $version is published and unchanged."
+                continue
+              fi
+              echo "::error::$id $version is already published and $dir may have changed: raise the version in $manifest."
+              exit 1
+            fi
+            dotnet nuget push "artifacts/packages/$id.$version.nupkg" --source https://nuget.pkg.github.com/tervforge/index.json \
+              --api-key "$API_KEY" --no-symbols
+          done

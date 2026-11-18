@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>VS Code light and dark interface themes for Invoklet.</Description>
+  </PropertyGroup>
+  <Import Project="../../ThemePackage.props" />
+</Project>

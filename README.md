@@ -1,6 +1,19 @@
 # Invoklet plugins
 
-The connection connectors of [Invoklet](https://github.com/tervforge/invoklet), each a NuGet package:
+The official plugins of [Invoklet](https://github.com/tervforge/invoklet), each a NuGet package: the connection connectors under
+`src/`, which Invoklet bundles, and theme packages under `themes/`, which users install from **Preferences → Plugins** and then
+pick in **Preferences → Appearance**.
+
+| Package | Plugin role | Contents |
+| --- | --- | --- |
+| `invoklet.theme.vscode` | theme | VS Code light and dark palettes |
+| `invoklet.theme.rider` | theme | Rider light and dark palettes |
+| `invoklet.theme.vs2022` | theme | Visual Studio 2022 light and dark palettes |
+
+A theme package holds only `invoklet-plugin.json` and the palettes it lists, under `plugin/` (`ThemePackage.props`).
+`tests/Invoklet.Themes.Tests` checks that every palette defines exactly Invoklet's palette keys.
+
+The connectors:
 
 | Package | Plugin role | Drivers |
 | --- | --- | --- |
@@ -30,12 +43,20 @@ done
 dotnet pack PluginPackages.slnx -c Release -o artifacts/packages
 ```
 
-Release builds point the `invoklet` source at GitHub Packages instead:
+To build against the published contracts instead, point the `invoklet` source at GitHub Packages:
 
 ```sh
 dotnet nuget update source invoklet --source https://nuget.pkg.github.com/tervforge/index.json \
   --username <user> --password <token with read:packages> --store-password-in-clear-text --configfile nuget.config
 ```
+
+The `Packages` workflow packs the connectors and runs their unit tests on every pull request and push, against the Invoklet
+commit `InvokletCommit` in `Directory.Build.props` pins; move it on together with plugins that need a newer Invoklet. A push to `main` then publishes the packages to GitHub Packages. The six connectors are released together under one version. A
+published version is never replaced: when a connector changes, raise the version in all six `invoklet-plugin.json` files (and
+`InvokletConnectorsVersion` in Invoklet's `build/ConnectorPlugins.targets`); the publish job fails if a changed connector's version
+is already taken. Invoklet publishes the contract packages
+itself and checks that the connector packages are published before a release build. Give the `invoklet` repository read access
+to the connector packages in their GitHub settings.
 
 NuGet keeps a package version once it has restored it: after repacking the same version, delete its folder under
 `~/.nuget/packages` or raise the version.

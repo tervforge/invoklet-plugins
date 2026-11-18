@@ -5,7 +5,6 @@
     <Description>gRPC connections for Invoklet.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Invoklet.Contracts" />
     <PackageReference Include="Grpc.Net.Client" />
     <PackageReference Include="Grpc.Reflection" />
   </ItemGroup>
