@@ -28,9 +28,15 @@ jobs:
       # The contracts and the application the tests run scripts through, at the commit Directory.Build.props pins.
       - name: Invoklet revision
         id: invoklet
+        env:
+          INVOKLET_REF_OVERRIDE: ${{ inputs.invoklet-ref }}
         run: |
-          ref="${{ inputs.invoklet-ref }}"
+          ref="$INVOKLET_REF_OVERRIDE"
           [ -n "$ref" ] || ref=$(sed -n 's:.*<InvokletCommit>\(.*\)</InvokletCommit>.*:\1:p' Directory.Build.props)
+          if [ -z "$ref" ]; then
+            echo "::error::Directory.Build.props does not pin InvokletCommit."
+            exit 1
+          fi
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
 
       - name: Invoklet checkout
