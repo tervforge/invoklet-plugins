@@ -30,17 +30,20 @@ done
 dotnet pack PluginPackages.slnx -c Release -o artifacts/packages
 ```
 
-Release builds point the `invoklet` source at GitHub Packages instead:
+To build against the published contracts instead, point the `invoklet` source at GitHub Packages:
 
 ```sh
 dotnet nuget update source invoklet --source https://nuget.pkg.github.com/tervforge/index.json \
   --username <user> --password <token with read:packages> --store-password-in-clear-text --configfile nuget.config
 ```
 
-The `Packages` workflow packs and tests on every pull request; run it by hand with **publish** to push the contract and
-connector packages to GitHub Packages. A version already published is skipped: raise the version in `invoklet-plugin.json` (and
-in Invoklet's `build/ConnectorPlugins.targets`) to publish a change. Give the `invoklet` repository read access to the packages
-in their GitHub settings so its release builds can restore them.
+The `Packages` workflow packs the connectors and runs their unit tests on every pull request and push, against Invoklet's `dev`
+branch. A push to `main` then publishes the packages to GitHub Packages. The six connectors are released together under one version. A
+published version is never replaced: when a connector changes, raise the version in all six `invoklet-plugin.json` files (and
+`InvokletConnectorsVersion` in Invoklet's `build/ConnectorPlugins.targets`); the publish job fails if a changed connector's version
+is already taken. Invoklet publishes the contract packages
+itself and checks that the connector packages are published before a release build. Give the `invoklet` repository read access
+to the connector packages in their GitHub settings.
 
 NuGet keeps a package version once it has restored it: after repacking the same version, delete its folder under
 `~/.nuget/packages` or raise the version.

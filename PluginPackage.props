@@ -3,8 +3,10 @@
        The package id and version come from invoklet-plugin.json, so the two cannot drift apart. -->
   <PropertyGroup>
     <_PluginManifestText>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/invoklet-plugin.json'))</_PluginManifestText>
-    <PackageId>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"id"\s*:\s*"([^"]+)"').Groups[1].Value)</PackageId>
-    <Version>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"version"\s*:\s*"([^"]+)"').Groups[1].Value)</Version>
+    <_PluginManifestId>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"id"\s*:\s*"([^"]+)"').Groups[1].Value)</_PluginManifestId>
+    <_PluginManifestVersion>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"version"\s*:\s*"([^"]+)"').Groups[1].Value)</_PluginManifestVersion>
+    <PackageId>$(_PluginManifestId)</PackageId>
+    <Version>$(_PluginManifestVersion)</Version>
     <IsPackable>true</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <!-- Every runtime dependency is in the payload; plugin dependencies are the manifest's dependsOn. -->
@@ -32,6 +34,10 @@
     <None Include="invoklet-plugin.json" CopyToPublishDirectory="PreserveNewest" Condition="'$(PluginPayloadProject)' == '$(MSBuildProjectName)'" />
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" Visible="false" />
   </ItemGroup>
+  <Target Name="CheckPluginManifestIdentity" BeforeTargets="Build;GenerateNuspec">
+    <Error Condition="'$(_PluginManifestId)' == '' or '$(_PluginManifestVersion)' == ''"
+           Text="invoklet-plugin.json must give the plugin's id and version as plain strings; they are the package id and version." />
+  </Target>
   <Target Name="AddPluginPayloadToPackage" BeforeTargets="_GetPackageFiles">
     <RemoveDir Directories="$(PluginPayloadDirectory)" />
     <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish"
