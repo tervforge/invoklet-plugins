@@ -101,7 +101,7 @@ jobs:
           API_KEY: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          shared="PluginPackage.props ThemePackage.props Directory.Build.props Directory.Packages.props build"
+          shared=(Directory.Build.props Directory.Packages.props build/PluginIdentity.props)
           if [ "$(jq -r .version src/*/invoklet-plugin.json | sort -u | wc -l)" -ne 1 ]; then
             echo "::error::The connectors are released under one version; their invoklet-plugin.json files disagree."
             exit 1
@@ -118,8 +118,13 @@ jobs:
             dir=$(dirname "$manifest")
             id=$(jq -r .id "$manifest")
             version=$(jq -r .version "$manifest")
+            inputs=("${shared[@]}" "$dir")
+            case "$dir" in
+              src/*) inputs+=(PluginPackage.props build/EfCoreDesign.props) ;;
+              themes/*) inputs+=(ThemePackage.props) ;;
+            esac
             if published "$id" "$version"; then
-              if git cat-file -e "$BEFORE^{commit}" 2>/dev/null && git diff --quiet "$BEFORE" HEAD -- "$dir" $shared; then
+              if git cat-file -e "$BEFORE^{commit}" 2>/dev/null && git diff --quiet "$BEFORE" HEAD -- "${inputs[@]}"; then
                 echo "$id $version is published and unchanged."
                 continue
               fi
