@@ -59,8 +59,8 @@ def fetch(url: str, token: str | None) -> bytes | None:
         raise SystemExit(f"error: {url} answered {error.code}")
 
 
-def mirror(index_url: str, ids: set[str], token: str | None) -> list[bytes]:
-    """Every version the feed at index_url has of the given ids."""
+def mirror(index_url: str, local_versions: dict[str, set[str]], token: str | None) -> list[bytes]:
+    """Versions of local package IDs that are missing from the build artifacts."""
     index = json.loads(fetch(index_url, token) or b"{}")
     base = next((resource["@id"] for resource in index.get("resources", [])
                  if resource.get("@type", "").startswith("PackageBaseAddress/")), None)
@@ -68,9 +68,11 @@ def mirror(index_url: str, ids: set[str], token: str | None) -> list[bytes]:
         raise SystemExit(f"error: {index_url} has no package base address")
     base = base.rstrip("/") + "/"
     packages = []
-    for package_id in sorted(ids):
+    for package_id, versions in sorted(local_versions.items()):
         listing = fetch(f"{base}{package_id}/index.json", token)
         for version in json.loads(listing)["versions"] if listing else []:
+            if version.lower() in versions:
+                continue
             body = fetch(f"{base}{package_id}/{version}/{package_id}.{version}.nupkg", token)
             if body is None:
                 raise SystemExit(f"error: {package_id} {version} is listed but cannot be downloaded")
@@ -134,8 +136,11 @@ def main() -> int:
         raise SystemExit(f"error: no .nupkg files in {arguments.packages}")
     packages = list(local)
     if arguments.mirror:
-        ids = {read_nuspec(body)["id"].lower() for body in local}
-        packages = mirror(arguments.mirror, ids, os.environ.get("NUGET_AUTH_TOKEN")) + local
+        local_versions: dict[str, set[str]] = {}
+        for body in local:
+            nuspec = read_nuspec(body)
+            local_versions.setdefault(nuspec["id"].lower(), set()).add(nuspec["version"].lower())
+        packages = mirror(arguments.mirror, local_versions, os.environ.get("NUGET_AUTH_TOKEN")) + local
 
     if arguments.out.exists():
         shutil.rmtree(arguments.out)
