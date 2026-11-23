@@ -6,9 +6,9 @@ The official plugins of [Invoklet](https://github.com/tervforge/invoklet), each 
 
 | Package | Plugin role | Contents |
 | --- | --- | --- |
-| `invoklet.theme.vscode` | theme | VS Code light and dark palettes |
-| `invoklet.theme.rider` | theme | Rider light and dark palettes |
-| `invoklet.theme.vs2022` | theme | Visual Studio 2022 light and dark palettes |
+| `tervforge.invoklet.theme.vscode` | theme | VS Code light and dark palettes |
+| `tervforge.invoklet.theme.rider` | theme | Rider light and dark palettes |
+| `tervforge.invoklet.theme.vs2022` | theme | Visual Studio 2022 light and dark palettes |
 
 A theme package holds only `invoklet-plugin.json` and the palettes it lists, under `plugin/` (`ThemePackage.props`).
 `tests/Invoklet.Themes.Tests` checks that every palette defines exactly Invoklet's palette keys.
@@ -17,18 +17,18 @@ The connectors:
 
 | Package | Plugin role | Drivers |
 | --- | --- | --- |
-| `invoklet.connector.http` | connection | `http`, `openapi` |
-| `invoklet.connector.grpc` | connection | `grpc` |
-| `invoklet.connector.efcore` | library | none: the EF Core reader the database connectors share |
-| `invoklet.connector.sqlite` | connection (depends on EF Core) | `sqlite` |
-| `invoklet.connector.sqlite-sql` | connection | `sqlite-sql` (parameterized SQL with Dapper) |
-| `invoklet.connector.postgres` | connection (depends on EF Core) | `postgres` |
-| `invoklet.connector.postgres-sql` | connection | `postgres-sql` (parameterized SQL with Dapper) |
-| `invoklet.connector.sqlserver` | connection (depends on EF Core) | `sqlserver` |
+| `tervforge.invoklet.connector.http` | connection | `http`, `openapi` |
+| `tervforge.invoklet.connector.grpc` | connection | `grpc` |
+| `tervforge.invoklet.connector.efcore` | library | none: the EF Core reader the database connectors share |
+| `tervforge.invoklet.connector.sqlite` | connection (depends on EF Core) | `sqlite` |
+| `tervforge.invoklet.connector.sqlite-sql` | connection | `sqlite-sql` (parameterized SQL with Dapper) |
+| `tervforge.invoklet.connector.postgres` | connection (depends on EF Core) | `postgres` |
+| `tervforge.invoklet.connector.postgres-sql` | connection | `postgres-sql` (parameterized SQL with Dapper) |
+| `tervforge.invoklet.connector.sqlserver` | connection (depends on EF Core) | `sqlserver` |
 
 Each package holds the published plugin under `plugin/`: `invoklet-plugin.json`, the assemblies with their `.deps.json`, and the
-native libraries for the runtimes Invoklet ships for. The package id and version are read from the manifest
-(`PluginPackage.props`), and a plugin the manifest lists in `dependsOn` is a project reference, not a NuGet dependency: Invoklet
+native libraries for the runtimes Invoklet ships for. The version is read from the manifest and the
+package id is its plugin id with the `tervforge.` prefix (`build/PluginIdentity.props`), and a plugin the manifest lists in `dependsOn` is a project reference, not a NuGet dependency: Invoklet
 installs and orders plugins by their manifests. See the
 [plugin authoring guide](https://tervforge.github.io/invoklet-docs/plugin-authoring/) for the interfaces and the package layout.
 

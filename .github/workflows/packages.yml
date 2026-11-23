@@ -116,7 +116,7 @@ jobs:
           }
           for manifest in src/*/invoklet-plugin.json themes/*/invoklet-plugin.json; do
             dir=$(dirname "$manifest")
-            id=$(jq -r .id "$manifest")
+            id="tervforge.$(jq -r .id "$manifest")"
             version=$(jq -r .version "$manifest")
             inputs=("${shared[@]}" "$dir")
             case "$dir" in

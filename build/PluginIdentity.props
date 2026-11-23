@@ -1,12 +1,13 @@
 <Project>
-  <!-- What every package of this repository shares: its id and version are the ones invoklet-plugin.json gives, so the two cannot
-       drift apart, and the package metadata. -->
+  <!-- What every package of this repository shares: its version and plugin id come from invoklet-plugin.json, so the two cannot
+       drift apart, and the package metadata. The NuGet package id is the plugin id under the publisher's prefix
+       (tervforge.invoklet.connector.postgres); the plugin keeps its own id, which installations and dependsOn use. -->
   <PropertyGroup>
     <_PluginManifestText>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/invoklet-plugin.json'))</_PluginManifestText>
     <_PluginManifestId>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"id"\s*:\s*"([^"]+)"').Groups[1].Value)</_PluginManifestId>
     <_PluginManifestVersion>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"version"\s*:\s*"([^"]+)"').Groups[1].Value)</_PluginManifestVersion>
     <_PluginManifestDisplayName>$([System.Text.RegularExpressions.Regex]::Match($(_PluginManifestText), '"displayName"\s*:\s*"([^"]+)"').Groups[1].Value)</_PluginManifestDisplayName>
-    <PackageId>$(_PluginManifestId)</PackageId>
+    <PackageId>tervforge.$(_PluginManifestId)</PackageId>
     <Version>$(_PluginManifestVersion)</Version>
     <Title>$(_PluginManifestDisplayName)</Title>
     <Authors>Tervforge</Authors>
@@ -24,6 +25,6 @@
   </ItemGroup>
   <Target Name="CheckPluginManifestIdentity" BeforeTargets="Build;GenerateNuspec">
     <Error Condition="'$(_PluginManifestId)' == '' or '$(_PluginManifestVersion)' == ''"
-           Text="invoklet-plugin.json must give the plugin's id and version as plain strings; they are the package id and version." />
+           Text="invoklet-plugin.json must give the plugin's id and version as plain strings; they give the package id and version." />
   </Target>
 </Project>
