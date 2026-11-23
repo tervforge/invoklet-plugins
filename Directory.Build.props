@@ -6,6 +6,9 @@
     <NoWarn>$(NoWarn);IDE0007;IDE0008;CS1591;CA2007;</NoWarn>
     <!-- Satellite resources of Roslyn and EF Core would multiply the package size and entry count; Invoklet shows English messages. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Reproducible packages: in CI the PDBs carry /_/ source paths instead of the build machine's, and Source Link maps them to
+         the commit on GitHub. Local builds keep real paths for debugging. -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <!-- The Invoklet commit these plugins are built and tested against in CI (its contracts and its application); moved on
          deliberately, together with the plugins that need a newer Invoklet. -->
     <InvokletCommit>e6b8cbee2c4e0be9fac766d20701441862020133</InvokletCommit>

@@ -3,6 +3,7 @@
   <PropertyGroup>
     <RootNamespace>Invoklet.Connectors.Grpc</RootNamespace>
     <Description>gRPC connections for Invoklet.</Description>
+    <PackageTags>$(PackageTags) grpc</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Grpc.Net.Client" />

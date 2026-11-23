@@ -3,6 +3,7 @@
   <PropertyGroup>
     <RootNamespace>Invoklet.Connectors.Postgres</RootNamespace>
     <Description>PostgreSQL connections for Invoklet.</Description>
+    <PackageTags>$(PackageTags) postgresql efcore database</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />

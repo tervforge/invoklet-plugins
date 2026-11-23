@@ -7,6 +7,7 @@
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <EnableDefaultItems>false</EnableDefaultItems>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <PackageTags>$(PackageTags) theme</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <None Include="*.json" Pack="true" PackagePath="plugin/" />

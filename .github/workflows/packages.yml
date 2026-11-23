@@ -101,7 +101,7 @@ jobs:
           API_KEY: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          shared=(Directory.Build.props Directory.Packages.props build/PluginIdentity.props)
+          shared=(Directory.Build.props Directory.Packages.props build/PluginIdentity.props build/icon.png)
           if [ "$(jq -r .version src/*/invoklet-plugin.json | sort -u | wc -l)" -ne 1 ]; then
             echo "::error::The connectors are released under one version; their invoklet-plugin.json files disagree."
             exit 1

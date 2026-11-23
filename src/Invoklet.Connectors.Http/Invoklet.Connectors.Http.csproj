@@ -3,6 +3,7 @@
   <PropertyGroup>
     <RootNamespace>Invoklet.Connectors.Http</RootNamespace>
     <Description>HTTP and OpenAPI connections for Invoklet.</Description>
+    <PackageTags>$(PackageTags) http openapi rest</PackageTags>
   </PropertyGroup>
   <ItemGroup>
   </ItemGroup>

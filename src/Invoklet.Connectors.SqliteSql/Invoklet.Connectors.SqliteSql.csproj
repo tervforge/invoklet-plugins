@@ -2,6 +2,7 @@
   <Import Project="../../PluginPackage.props" />
   <PropertyGroup>
     <Description>Parameterized SQLite queries with Dapper for Invoklet.</Description>
+    <PackageTags>$(PackageTags) sqlite sql dapper database</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
