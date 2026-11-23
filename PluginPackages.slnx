@@ -4,8 +4,10 @@
     <Project Path="src/Invoklet.Connectors.Grpc/Invoklet.Connectors.Grpc.csproj" />
     <Project Path="src/Invoklet.Connectors.Http/Invoklet.Connectors.Http.csproj" />
     <Project Path="src/Invoklet.Connectors.Postgres/Invoklet.Connectors.Postgres.csproj" />
+    <Project Path="src/Invoklet.Connectors.PostgresSql/Invoklet.Connectors.PostgresSql.csproj" />
     <Project Path="src/Invoklet.Connectors.SqlServer/Invoklet.Connectors.SqlServer.csproj" />
     <Project Path="src/Invoklet.Connectors.Sqlite/Invoklet.Connectors.Sqlite.csproj" />
+    <Project Path="src/Invoklet.Connectors.SqliteSql/Invoklet.Connectors.SqliteSql.csproj" />
   </Folder>
   <Folder Name="/themes/">
     <Project Path="themes/invoklet.theme.rider/invoklet.theme.rider.csproj" />

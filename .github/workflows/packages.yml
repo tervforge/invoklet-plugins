@@ -1,9 +1,9 @@
 name: Packages
 
-# Every pull request and push packs the six connectors and the theme packages and runs their tests; a push to main then publishes
+# Every pull request and push packs the connectors and theme packages and runs their tests; a push to main then publishes
 # them to GitHub Packages, which Invoklet's release builds restore, and deploys the anonymous feed on GitHub Pages that Invoklet's
-# Preferences → Plugins reads (build/static_feed.py). Each theme has its own version; the six connectors share one, and a published version is never replaced: a change
-# to a connector needs a new version in every invoklet-plugin.json (and Invoklet's build/ConnectorPlugins.targets), and the publish
+# Preferences → Plugins reads (build/static_feed.py). Each theme has its own version. The connectors share one version, and a published version is never replaced: a change
+# to a published connector needs a new version in the connector manifests, and the publish
 # job fails without one.
 
 on:

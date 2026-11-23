@@ -1,0 +1,12 @@
+{
+  "id": "invoklet.connector.postgres-sql",
+  "version": "1.0.0",
+  "displayName": "PostgreSQL (SQL)",
+  "roles": {
+    "connection": 1
+  },
+  "entry": {
+    "assembly": "Invoklet.Connectors.PostgresSql.dll",
+    "type": "Invoklet.Connectors.PostgresSql.Plugin"
+  }
+}
