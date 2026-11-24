@@ -26,7 +26,7 @@ public sealed class ConnectorPluginLoadingTests
 
         foreach (var id in ids)
         {
-            using var prepared = installer.PrepareArchive(Path.Combine(AppContext.BaseDirectory, "connector-packages", id + ".1.0.0.nupkg"));
+            using var prepared = installer.PrepareArchive(Path.Combine(AppContext.BaseDirectory, "connector-packages", "tervforge." + id + ".1.0.0.nupkg"));
             Assert.Equal(id, prepared.Manifest.Id);
             installer.Install(prepared);
         }
@@ -49,7 +49,7 @@ public sealed class ConnectorPluginLoadingTests
     {
         using var package = new SampleConnectorPackage();
         var installer = new PluginPackageInstaller(package.UserDirectory, package.Inventory, BundledPluginCatalog.Empty);
-        using (var prepared = installer.PrepareArchive(Path.Combine(AppContext.BaseDirectory, "connector-packages", "invoklet.connector.sqlite.1.0.0.nupkg")))
+        using (var prepared = installer.PrepareArchive(Path.Combine(AppContext.BaseDirectory, "connector-packages", "tervforge.invoklet.connector.sqlite.1.0.0.nupkg")))
             installer.Install(prepared);
         var registry = new ConnectionDriverRegistry();
 

@@ -9,6 +9,7 @@
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
     <Description>Invoklet connection plugin.</Description>
+    <PackageTags>$(PackageTags) connector</PackageTags>
     <!-- The payload is portable: native assets travel under runtimes/ and the plugin's .deps.json picks one. Only the runtimes
          Invoklet ships for are kept; the others would only grow the package. -->
     <PluginPayloadDirectory>$(BaseIntermediateOutputPath)plugin-payload/</PluginPayloadDirectory>

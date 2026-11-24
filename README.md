@@ -1,14 +1,14 @@
 # Invoklet plugins
 
 The official plugins of [Invoklet](https://github.com/tervforge/invoklet), each a NuGet package: the connection connectors under
-`src/`, which Invoklet bundles, and theme packages under `themes/`, which users install from **Preferences → Plugins** and then
-pick in **Preferences → Appearance**.
+`src/` and theme packages under `themes/`. Install them from **Preferences → Plugins**. Select installed themes in
+**Preferences → Appearance**.
 
 | Package | Plugin role | Contents |
 | --- | --- | --- |
-| `invoklet.theme.vscode` | theme | VS Code light and dark palettes |
-| `invoklet.theme.rider` | theme | Rider light and dark palettes |
-| `invoklet.theme.vs2022` | theme | Visual Studio 2022 light and dark palettes |
+| `tervforge.invoklet.theme.vscode` | theme | VS Code light and dark palettes |
+| `tervforge.invoklet.theme.rider` | theme | Rider light and dark palettes |
+| `tervforge.invoklet.theme.vs2022` | theme | Visual Studio 2022 light and dark palettes |
 
 A theme package holds only `invoklet-plugin.json` and the palettes it lists, under `plugin/` (`ThemePackage.props`).
 `tests/Invoklet.Themes.Tests` checks that every palette defines exactly Invoklet's palette keys.
@@ -17,19 +17,45 @@ The connectors:
 
 | Package | Plugin role | Drivers |
 | --- | --- | --- |
-| `invoklet.connector.http` | connection | `http`, `openapi` |
-| `invoklet.connector.grpc` | connection | `grpc` |
-| `invoklet.connector.efcore` | library | none: the EF Core reader the database connectors share |
-| `invoklet.connector.sqlite` | connection (depends on EF Core) | `sqlite` |
-| `invoklet.connector.postgres` | connection (depends on EF Core) | `postgres` |
-| `invoklet.connector.sqlserver` | connection (depends on EF Core) | `sqlserver` |
+| `tervforge.invoklet.connector.http` | connection | `http`, `openapi` |
+| `tervforge.invoklet.connector.grpc` | connection | `grpc` |
+| `tervforge.invoklet.connector.efcore` | library | none: the EF Core reader the database connectors share |
+| `tervforge.invoklet.connector.sqlite` | connection (depends on EF Core) | `sqlite` |
+| `tervforge.invoklet.connector.sqlite-sql` | connection | `sqlite-sql` (parameterized SQL with Dapper) |
+| `tervforge.invoklet.connector.postgres` | connection (depends on EF Core) | `postgres` |
+| `tervforge.invoklet.connector.postgres-sql` | connection | `postgres-sql` (parameterized SQL with Dapper) |
+| `tervforge.invoklet.connector.sqlserver` | connection (depends on EF Core) | `sqlserver` |
 
 Each package holds the published plugin under `plugin/`: `invoklet-plugin.json`, the assemblies with their `.deps.json`, and the
-native libraries for the runtimes Invoklet ships for. The package id and version are read from the manifest
-(`PluginPackage.props`), and a plugin the manifest lists in `dependsOn` is a project reference, not a NuGet dependency: Invoklet
-installs and orders plugins by their manifests. Invoklet bundles these packages in its releases, and they install through
-**Preferences → Plugins** as any other plugin. See the
+native libraries for the runtimes Invoklet ships for. The version is read from the manifest and the
+package id is its plugin id with the `tervforge.` prefix (`build/PluginIdentity.props`), and a plugin the manifest lists in `dependsOn` is a project reference, not a NuGet dependency: Invoklet
+installs and orders plugins by their manifests. See the
 [plugin authoring guide](https://tervforge.github.io/invoklet-docs/plugin-authoring/) for the interfaces and the package layout.
+
+### SQLite (SQL)
+
+Add a SQLite (SQL) connection named `shop` to a C# script. Choose an existing database file.
+Paths relative to the saved script are supported. The connection opens the file read-only by default.
+
+```csharp
+var people = await Connections.Shop.QueryAsync(
+    "SELECT id, name FROM people WHERE id >= @minId ORDER BY id",
+    row => new { Id = row.GetInt64(0), Name = row.GetString(1) },
+    new { minId = 1L });
+
+people.Dump();
+```
+
+The result is buffered as an `IReadOnlyList<T>`. Use `row.IsDBNull(...)` in the projection for
+nullable columns. This driver requires Dapper and Microsoft.Data.Sqlite in the script, with no EF Core dependency.
+
+### PostgreSQL (SQL)
+
+Add a PostgreSQL (SQL) connection and use the same `QueryAsync` API. The script uses
+Dapper and Npgsql. For example, `SELECT @id::integer` with `new { id = 7 }` is read
+with `row.GetInt32(0)`. Put passwords in a `${secret:name}` placeholder.
+The read-only option runs each query in a PostgreSQL read-only transaction by default.
+Use a restricted PostgreSQL role when access must be enforced by permissions.
 
 ## Build
 
@@ -50,13 +76,12 @@ dotnet nuget update source invoklet --source https://nuget.pkg.github.com/tervfo
   --username <user> --password <token with read:packages> --store-password-in-clear-text --configfile nuget.config
 ```
 
-The `Packages` workflow packs the connectors and runs their unit tests on every pull request and push, against the Invoklet
-commit `InvokletCommit` in `Directory.Build.props` pins; move it on together with plugins that need a newer Invoklet. A push to `main` then publishes the packages to GitHub Packages. The six connectors are released together under one version. A
-published version is never replaced: when a connector changes, raise the version in all six `invoklet-plugin.json` files (and
-`InvokletConnectorsVersion` in Invoklet's `build/ConnectorPlugins.targets`); the publish job fails if a changed connector's version
-is already taken. Invoklet publishes the contract packages
-itself and checks that the connector packages are published before a release build. Give the `invoklet` repository read access
-to the connector packages in their GitHub settings.
+The `Packages` workflow runs unit tests against the Invoklet commit pinned in `Directory.Build.props`.
+Pull requests also verify packaging. A push to `main` builds and publishes the packages to GitHub Packages
+after the tests pass. The Pages job rebuilds them locally, so retries can deploy the feed without publishing again.
+The connectors share one version. A
+published version is never replaced: when a published connector changes, raise the version in the connector manifests.
+The publish job fails if a changed connector's version is already taken. Invoklet publishes the contract packages separately.
 
 NuGet keeps a package version once it has restored it: after repacking the same version, delete its folder under
 `~/.nuget/packages` or raise the version.
