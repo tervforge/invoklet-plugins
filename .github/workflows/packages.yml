@@ -1,7 +1,7 @@
 name: Packages
 
-# Every pull request and push packs the connectors and theme packages and runs their tests; a push to main then publishes
-# them to GitHub Packages, which Invoklet's release builds restore, and deploys the anonymous feed on GitHub Pages that Invoklet's
+# Pull requests pack the connectors and themes and run their tests. A push to main runs the tests, publishes the packages
+# to GitHub Packages and deploys the anonymous feed on GitHub Pages that Invoklet's
 # Preferences → Plugins reads (build/static_feed.py). Each theme has its own version. The connectors share one version, and a published version is never replaced: a change
 # to a published connector needs a new version in the connector manifests, and the publish
 # job fails without one.
@@ -27,7 +27,8 @@ jobs:
       - uses: actions/checkout@v5
 
       # The contracts and the application the tests run scripts through, at the commit Directory.Build.props pins.
-      - name: Invoklet revision
+      - &invoklet_revision
+        name: Invoklet revision
         id: invoklet
         env:
           INVOKLET_REF_OVERRIDE: ${{ inputs.invoklet-ref }}
@@ -40,18 +41,21 @@ jobs:
           fi
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
 
-      - name: Invoklet checkout
+      - &invoklet_checkout
+        name: Invoklet checkout
         uses: actions/checkout@v5
         with:
           repository: tervforge/invoklet
           ref: ${{ steps.invoklet.outputs.ref }}
           path: invoklet-src
 
-      - uses: actions/setup-dotnet@v5
+      - &setup_dotnet
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
-      - name: Contract packages
+      - &pack_contracts
+        name: Contract packages
         run: |
           set -e
           for p in Invoklet.Plugins Invoklet.Contracts Invoklet.Format.MdRun; do
@@ -59,7 +63,8 @@ jobs:
           done
 
       - name: Connector packages
-        run: dotnet pack PluginPackages.slnx -c Release -warnaserror -o artifacts/packages
+        if: github.event_name != 'push'
+        run: &pack_plugins dotnet pack PluginPackages.slnx -c Release -warnaserror -o artifacts/packages
 
       # Builds the integration tests too, so they keep compiling; CI=true leaves them out of the run (they need servers, README.md).
       - name: Tests
@@ -70,11 +75,7 @@ jobs:
           dotnet test tests/Invoklet.Connectors.Tests -c Release --no-build -p:InvokletRoot="$GITHUB_WORKSPACE/invoklet-src/"
           dotnet test tests/Invoklet.Themes.Tests -c Release --no-build -p:InvokletRoot="$GITHUB_WORKSPACE/invoklet-src/"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: connector-packages
-          path: artifacts/packages/*.nupkg
-
+  # Keep write permissions out of PR jobs and rebuild packages here so no CI artifact is needed to transfer them.
   publish:
     if: github.event_name == 'push'
     needs: test
@@ -87,10 +88,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: connector-packages
-          path: artifacts/packages
+      - *invoklet_revision
+      - *invoklet_checkout
+      - *setup_dotnet
+      - *pack_contracts
+      - name: Connector packages
+        run: *pack_plugins
 
       # A version is pushed only once GitHub Packages confirmed it is not there; one already there is fine only when its sources did
       # not change. Any other answer from the API stops the job, so a failed lookup never passes an old package off as new.
@@ -135,8 +138,7 @@ jobs:
               --api-key "$API_KEY" --no-symbols
           done
 
-  # GitHub Packages needs a token even for public packages, so users install from a static NuGet v3 feed on GitHub Pages. Each
-  # deployment replaces the site: the feed republishes every version GitHub Packages has of these ids, plus this run's packages.
+  # Keep deployment retries independent of NuGet publishing.
   pages:
     if: github.event_name == 'push'
     needs: publish
@@ -154,11 +156,12 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v5
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: connector-packages
-          path: artifacts/packages
+      - *invoklet_revision
+      - *invoklet_checkout
+      - *setup_dotnet
+      - *pack_contracts
+      - name: Connector packages
+        run: *pack_plugins
 
       - name: Pages
         id: pages
@@ -172,9 +175,11 @@ jobs:
           python3 build/static_feed.py --base-url "$PAGES_BASE_URL/" --packages artifacts/packages \
             --mirror https://nuget.pkg.github.com/tervforge/index.json --out site
 
+      # GitHub Pages requires a deployment artifact to serve the feed without a token.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+          retention-days: 1
 
       - name: Deploy
         id: deploy

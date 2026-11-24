@@ -76,8 +76,10 @@ dotnet nuget update source invoklet --source https://nuget.pkg.github.com/tervfo
   --username <user> --password <token with read:packages> --store-password-in-clear-text --configfile nuget.config
 ```
 
-The `Packages` workflow packs the connectors and runs their unit tests on every pull request and push, against the Invoklet
-commit `InvokletCommit` in `Directory.Build.props` pins; move it on together with plugins that need a newer Invoklet. A push to `main` then publishes the packages to GitHub Packages. The connectors share one version. A
+The `Packages` workflow runs unit tests against the Invoklet commit pinned in `Directory.Build.props`.
+Pull requests also verify packaging. A push to `main` builds and publishes the packages to GitHub Packages
+after the tests pass. The Pages job rebuilds them locally, so retries can deploy the feed without publishing again.
+The connectors share one version. A
 published version is never replaced: when a published connector changes, raise the version in the connector manifests.
 The publish job fails if a changed connector's version is already taken. Invoklet publishes the contract packages separately.
 
